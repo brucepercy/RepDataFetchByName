@@ -1,0 +1,59 @@
+function fetchEmailsAndPhoneNumbers() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var lookupSheet = spreadsheet.getSheetByName("NameToEmailFetchBruce"); // Lookup Sheet
+  
+  // Source sheets with correct column indices
+  var sourceSheets = [
+    { name: "Quebec Hiring Tracker", firstNameCol: 1, lastNameCol: 2, emailCol: 3, numberCol: 4, cityJobCol: 8 },
+    { name: "Events (ON)", firstNameCol: 1, lastNameCol: 2, emailCol: 3, numberCol: 4, cityJobCol: 6 }
+  ];
+
+  var masterLookup = {}; // Object for quick lookup (name -> details)
+
+  // Process each source sheet
+  sourceSheets.forEach(sheetInfo => {
+    var sheet = spreadsheet.getSheetByName(sheetInfo.name);
+    if (!sheet) return; // Skip if sheet is missing
+    
+    var data = sheet.getDataRange().getValues(); // Get all data
+
+    for (var i = 1; i < data.length; i++) {
+      var firstName = data[i][sheetInfo.firstNameCol]?.toString().trim() || "";
+      var lastName = data[i][sheetInfo.lastNameCol]?.toString().trim() || "";
+      var email = data[i][sheetInfo.emailCol]?.toString().trim() || "";
+      var number = data[i][sheetInfo.numberCol]?.toString().trim() || "";
+      var cityJob = data[i][sheetInfo.cityJobCol]?.toString().trim() || "";
+
+      var fullName = (firstName + " " + lastName).toLowerCase();
+
+      if (!masterLookup[fullName]) {
+        masterLookup[fullName] = { firstName, lastName, email, number, cityJob };
+      }
+    }
+  });
+
+  // Get lookup names from NameToEmailFetchBruce
+  var lookupData = lookupSheet.getRange(2, 1, lookupSheet.getLastRow() - 1, 1).getValues(); // Column A (names)
+
+  // Iterate through lookup names
+  for (var j = 0; j < lookupData.length; j++) {
+    var lookupName = lookupData[j][0]?.toString().trim().toLowerCase();
+    if (!lookupName) continue;
+
+    var foundEntry = Object.keys(masterLookup).find(name => name.includes(lookupName));
+
+    if (foundEntry) {
+      var foundData = masterLookup[foundEntry];
+
+      // Write data to the lookup sheet
+      lookupSheet.getRange(j + 2, 2).setValue(foundData.firstName || "Not Found");
+      lookupSheet.getRange(j + 2, 3).setValue(foundData.lastName || "Not Found");
+      lookupSheet.getRange(j + 2, 4).setValue(foundData.email || "Not Found");
+      lookupSheet.getRange(j + 2, 5).setValue(foundData.number || "Not Found");
+      lookupSheet.getRange(j + 2, 6).setValue(foundData.cityJob || "Not Found");
+    } else {
+      // If no match, mark as "Not Found"
+      lookupSheet.getRange(j + 2, 2, 1, 5).setValue("Not Found");
+    }
+  }
+}
